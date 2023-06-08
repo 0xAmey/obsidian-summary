@@ -1,0 +1,11 @@
+{
+  "id": "obsidian-summary",
+  "name": "Obsidian Summary",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Summarize the current page or all the pages modified in the past 7 days!",
+  "author": "Obsidian",
+  "main": "main.js",
+  "authorUrl": "https://amey.wtf",
+  "isDesktopOnly": false
+}
