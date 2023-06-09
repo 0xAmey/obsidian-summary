@@ -44,11 +44,11 @@ class SummaryPlugin extends Plugin {
         });
       });
 
-      // summaryMenu.addItem((item) => {
-      //   item.setTitle("Summarize recently modified pages").onClick(() => {
-      //     this.summarizeModifiedLastWeek();
-      //   });
-      // });
+      summaryMenu.addItem((item) => {
+        item.setTitle("Summarize recently modified pages").onClick(() => {
+          this.summarizeModifiedLastWeek();
+        });
+      });
 
       summaryMenu.showAtPosition({ x: evt.clientX, y: evt.clientY });
     });
@@ -92,32 +92,65 @@ class SummaryPlugin extends Plugin {
     const vault = app.vault;
     const newFilename = `Summary ${currentFilename}.md`;
 
-    // Check if the file already exists
     let newFile = vault.getAbstractFileByPath(newFilename);
     if (!newFile) {
-      // Create the new file
       newFile = await vault.create(newFilename, summary);
     } else {
-      // Overwrite the existing file
       await vault.modify(newFile, summary);
     }
 
-    // Open the new file in the editor
     app.workspace.activeLeaf.openFile(newFile);
   }
 
-  summarizeModifiedLastWeek() {
+  async summarizeModifiedLastWeek() {
     const fileList = this.app.vault.getFiles();
     const lastWeek = moment().subtract(7, "days");
     const modifiedLastWeek = fileList.filter((file) =>
       moment(file.stat.mtime).isAfter(lastWeek)
     );
 
-    // Implement your summarization logic here
-    console.log(
-      "Summarize recently modified pages",
-      modifiedLastWeek.map((file) => file.basename)
-    );
+    const startDate = lastWeek.format("YYYY-MM-DD");
+    const endDate = moment().format("YYYY-MM-DD");
+    const summaryFileName = `Summary from ${startDate} to ${endDate}.md`;
+
+    await this.createSummaryFileWeek(summaryFileName, "Loading...");
+    let summaryContent = "";
+
+    for (const file of modifiedLastWeek) {
+      const fileContent = await this.app.vault.read(file);
+      const response = await fetch("http://127.0.0.1:5000/api/gpt/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: fileContent,
+        }),
+      });
+
+      if (response.ok) {
+        const fileSummary = await response.text();
+        summaryContent += `## ${file.basename}\n\n${fileSummary}\n\n`;
+      } else {
+        summaryContent += `## ${file.basename}\n\nError: Could not generate summary\n\n`;
+      }
+    }
+
+    await this.createSummaryFileWeek(summaryFileName, summaryContent);
+  }
+
+  async createSummaryFileWeek(filename, summary) {
+    const app = this.app;
+    const vault = app.vault;
+
+    let newFile = vault.getAbstractFileByPath(filename);
+    if (!newFile) {
+      newFile = await vault.create(filename, summary);
+    } else {
+      await vault.modify(newFile, summary);
+    }
+
+    app.workspace.activeLeaf.openFile(newFile);
   }
 }
 
